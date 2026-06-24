@@ -302,7 +302,6 @@
 </head>
 <body>
   <h1>🎡 Roulette Wheel</h1>
-  <p class="subtitle">Edit <code>segments.txt</code>, reload, then click the wheel to spin!</p>
 
   <div class="layout">
     <div class="wheel-section">
@@ -357,36 +356,28 @@
     let currentRotation = 0;
     let isSpinning = false;
 
-    function drawRadialLabel(text, mid, radius, sliceAngle, n) {
-      const maxLen = n > 12 ? 12 : 16;
+    function drawRadialLabel(text, mid, radius, n) {
+      const maxLen = n > 12 ? 11 : 14;
       const label = text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
-      const chars = label.split("");
-      const fontSize = n > 12 ? 15 : 19;
+      const fontSize = n > 12 ? 16 : 19;
+      const r = radius * 0.62;
+      const x = Math.cos(mid) * r;
+      const y = Math.sin(mid) * r;
 
-      ctx.rotate(mid);
+      // Left half: rotate 180° so the label stays upright (standard wheel rule).
+      const flip = mid > Math.PI / 2 || mid < -Math.PI / 2;
 
-      const flip = mid > Math.PI / 2 && mid < (3 * Math.PI) / 2;
-      if (flip) ctx.rotate(Math.PI);
-
+      ctx.save();
       ctx.fillStyle = "#fff";
       ctx.font = `bold ${fontSize}px "Segoe UI", sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.shadowColor = "rgba(0,0,0,0.5)";
       ctx.shadowBlur = 4;
-
-      const charStep = fontSize * 0.72;
-      const totalSpan = charStep * Math.max(chars.length - 1, 0);
-      const centerR = radius * 0.66;
-      const innerR = centerR - totalSpan / 2;
-
-      chars.forEach((ch, idx) => {
-        const r = chars.length === 1 ? centerR : innerR + charStep * idx;
-        ctx.save();
-        ctx.translate(flip ? -r : r, 0);
-        ctx.fillText(ch, 0, 0);
-        ctx.restore();
-      });
+      ctx.translate(x, y);
+      ctx.rotate(flip ? mid + Math.PI : mid);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
     }
 
     function normalizeRotation(rotation) {
@@ -442,7 +433,7 @@
 
         ctx.save();
         const mid = start + sliceAngle / 2;
-        drawRadialLabel(segments[i], mid, radius, sliceAngle, n);
+        drawRadialLabel(segments[i], mid, radius, n);
         ctx.restore();
       }
 
