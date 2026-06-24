@@ -1,0 +1,15 @@
+Barde
+Bete
+Mage
+Voleur
+Paladin
+Demoniste
+Espionne
+Alchimiste
+Ogre
+Archère
+Vampire
+Chasseresse
+Pretresse
+Guerriere
+Necromancien

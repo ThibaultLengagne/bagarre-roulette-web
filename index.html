@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roulette Wheel</title>
+  <style>
+    :root {
+      --bg: #0f0f14;
+      --surface: #1a1a24;
+      --surface-2: #242433;
+      --border: #33334a;
+      --text: #f0f0f8;
+      --muted: #8888a8;
+      --accent: #7c5cff;
+      --accent-glow: rgba(124, 92, 255, 0.35);
+      --gold: #ffd166;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 92, 255, 0.12), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255, 107, 107, 0.08), transparent);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 3rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+      background: linear-gradient(135deg, #fff 30%, var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+
+    .layout {
+      display: flex;
+      gap: 2.5rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 960px;
+      width: 100%;
+    }
+
+    /* ── Wheel area ── */
+    .wheel-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .wheel-wrapper {
+      position: relative;
+      width: 380px;
+      height: 380px;
+    }
+
+    .pointer {
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      width: 0;
+      height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 28px solid var(--gold);
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    }
+
+    .pointer::after {
+      content: "";
+      position: absolute;
+      top: -30px;
+      left: -8px;
+      width: 16px;
+      height: 16px;
+      background: var(--gold);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--gold);
+    }
+
+    #wheel-canvas {
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: box-shadow 0.3s;
+      box-shadow:
+        0 0 0 6px var(--surface-2),
+        0 0 0 10px var(--border),
+        0 0 40px var(--accent-glow),
+        0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    #wheel-canvas:hover:not(.spinning) {
+      box-shadow:
+        0 0 0 6px var(--surface-2),
+        0 0 0 10px var(--accent),
+        0 0 60px var(--accent-glow),
+        0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    #wheel-canvas.spinning { cursor: wait; }
+
+    .center-hub {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #3a3a50, #1e1e2e);
+      border: 3px solid var(--gold);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      pointer-events: none;
+    }
+
+    .result-box {
+      text-align: center;
+      min-height: 80px;
+      padding: 1rem 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 380px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .result-box.winner {
+      border-color: var(--gold);
+      box-shadow: 0 0 24px rgba(255, 209, 102, 0.2);
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .result-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--gold);
+      word-break: break-word;
+    }
+
+    .result-placeholder { color: var(--muted); font-size: 1rem; font-weight: 400; }
+
+    .spin-btn {
+      padding: 0.75rem 2.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--accent), #a06bff);
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+
+    .spin-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 28px var(--accent-glow);
+    }
+
+    .spin-btn:active:not(:disabled) { transform: translateY(0); }
+    .spin-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Config panel ── */
+    .config-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      width: 320px;
+      flex-shrink: 0;
+    }
+
+    .config-panel h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .config-panel p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .file-path {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.82rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      word-break: break-all;
+    }
+
+    .segment-list {
+      list-style: none;
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+
+    .segment-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.88rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .segment-list li:last-child { border-bottom: none; }
+
+    .segment-list .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .config-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-secondary:hover {
+      background: #2e2e42;
+      border-color: var(--accent);
+    }
+
+    .segment-count {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .load-error {
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎡 Roulette Wheel</h1>
+  <p class="subtitle">Edit <code>segments.txt</code>, reload, then click the wheel to spin!</p>
+
+  <div class="layout">
+    <div class="wheel-section">
+      <div class="wheel-wrapper">
+        <div class="pointer"></div>
+        <canvas id="wheel-canvas" width="760" height="760"></canvas>
+        <div class="center-hub">🎲</div>
+      </div>
+
+      <div class="result-box" id="result-box">
+        <div class="result-label">Result</div>
+        <div class="result-value result-placeholder" id="result-value">Spin the wheel!</div>
+      </div>
+
+      <button class="spin-btn" id="spin-btn">Spin!</button>
+    </div>
+
+    <div class="config-panel">
+      <h2>Wheel Segments</h2>
+      <p>One value per line in:</p>
+      <div class="file-path">segments.txt</div>
+      <ul class="segment-list" id="segment-list"></ul>
+      <div class="config-actions">
+        <button class="btn-secondary" id="reload-btn">Reload from file</button>
+      </div>
+      <div class="segment-count" id="segment-count"></div>
+      <div class="load-error" id="load-error" hidden></div>
+    </div>
+  </div>
+
+  <script>
+    const COLORS = [
+      "#FF6B6B", "#FFD166", "#06D6A0", "#118AB2",
+      "#7C5CFF", "#FF9F1C", "#EF476F", "#1B9AAA",
+      "#F72585", "#4CC9F0", "#7209B7", "#52B788",
+      "#E76F51", "#2A9D8F", "#E9C46A", "#264653",
+    ];
+
+    const SEGMENTS_FILE = "segments.txt";
+
+    const canvas = document.getElementById("wheel-canvas");
+    const ctx = canvas.getContext("2d");
+    const resultBox = document.getElementById("result-box");
+    const resultValue = document.getElementById("result-value");
+    const spinBtn = document.getElementById("spin-btn");
+    const reloadBtn = document.getElementById("reload-btn");
+    const segmentList = document.getElementById("segment-list");
+    const segmentCount = document.getElementById("segment-count");
+    const loadError = document.getElementById("load-error");
+
+    let segments = [];
+    let currentRotation = 0;
+    let isSpinning = false;
+
+    function drawRadialLabel(text, mid, radius, sliceAngle, n) {
+      const maxLen = n > 12 ? 12 : 16;
+      const label = text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
+      const chars = label.split("");
+      const fontSize = n > 12 ? 15 : 19;
+
+      ctx.rotate(mid);
+
+      const flip = mid > Math.PI / 2 && mid < (3 * Math.PI) / 2;
+      if (flip) ctx.rotate(Math.PI);
+
+      ctx.fillStyle = "#fff";
+      ctx.font = `bold ${fontSize}px "Segoe UI", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 4;
+
+      const charStep = fontSize * 0.72;
+      const totalSpan = charStep * Math.max(chars.length - 1, 0);
+      const centerR = radius * 0.66;
+      const innerR = centerR - totalSpan / 2;
+
+      chars.forEach((ch, idx) => {
+        const r = chars.length === 1 ? centerR : innerR + charStep * idx;
+        ctx.save();
+        ctx.translate(flip ? -r : r, 0);
+        ctx.fillText(ch, 0, 0);
+        ctx.restore();
+      });
+    }
+
+    function normalizeRotation(rotation) {
+      return ((rotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    }
+
+    function parseSegments(text) {
+      return text
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0 && !s.startsWith("#"));
+    }
+
+    function drawWheel(rotation = 0) {
+      const W = canvas.width;
+      const H = canvas.height;
+      const cx = W / 2;
+      const cy = H / 2;
+      const radius = W / 2 - 8;
+      const n = segments.length;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rotation);
+
+      if (n === 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#2a2a3a";
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      const sliceAngle = (Math.PI * 2) / n;
+
+      for (let i = 0; i < n; i++) {
+        const start = i * sliceAngle - Math.PI / 2;
+        const end = start + sliceAngle;
+        const color = COLORS[i % COLORS.length];
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(0,0,0,0.25)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        const mid = start + sliceAngle / 2;
+        drawRadialLabel(segments[i], mid, radius, sliceAngle, n);
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 36, 0, Math.PI * 2);
+      ctx.fillStyle = "#1a1a24";
+      ctx.fill();
+      ctx.strokeStyle = "#ffd166";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function updateSegmentList() {
+      segmentList.innerHTML = segments
+        .map(
+          (s, i) =>
+            `<li><span class="dot" style="background:${COLORS[i % COLORS.length]}"></span>${escapeHtml(s)}</li>`
+        )
+        .join("");
+      segmentCount.textContent = `${segments.length} segment${segments.length !== 1 ? "s" : ""}`;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function showError(msg) {
+      loadError.hidden = false;
+      loadError.textContent = msg;
+    }
+
+    function clearError() {
+      loadError.hidden = true;
+      loadError.textContent = "";
+    }
+
+    async function loadSegments() {
+      clearError();
+      reloadBtn.disabled = true;
+      try {
+        const res = await fetch(`${SEGMENTS_FILE}?t=${Date.now()}`);
+        if (!res.ok) throw new Error(`Could not read ${SEGMENTS_FILE} (${res.status})`);
+        const text = await res.text();
+        const parsed = parseSegments(text);
+        if (parsed.length === 0) throw new Error(`${SEGMENTS_FILE} has no segments`);
+        segments = parsed;
+        currentRotation = 0;
+        drawWheel(0);
+        updateSegmentList();
+        resultBox.classList.remove("winner");
+        resultValue.textContent = "Spin the wheel!";
+        resultValue.classList.add("result-placeholder");
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        reloadBtn.disabled = false;
+      }
+    }
+
+    function getWinnerIndex(rotation) {
+      const n = segments.length;
+      const sliceAngle = (Math.PI * 2) / n;
+      // Pointer is fixed at the top (-π/2). Undo wheel rotation to find the segment.
+      const shifted = ((-rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+      return Math.floor(shifted / sliceAngle) % n;
+    }
+
+    function rotationForWinner(winnerIndex) {
+      const sliceAngle = (Math.PI * 2) / segments.length;
+      const sliceCenter = winnerIndex * sliceAngle + sliceAngle / 2;
+      return (Math.PI * 2 - sliceCenter) % (Math.PI * 2);
+    }
+
+    function spin() {
+      if (isSpinning || segments.length === 0) return;
+
+      isSpinning = true;
+      canvas.classList.add("spinning");
+      spinBtn.disabled = true;
+      resultBox.classList.remove("winner");
+      resultValue.textContent = "…";
+      resultValue.classList.add("result-placeholder");
+
+      const n = segments.length;
+      const sliceAngle = (Math.PI * 2) / n;
+      const winnerIndex = Math.floor(Math.random() * n);
+      const extraSpins = 2 + Math.floor(Math.random() * 2);
+
+      const startRotation = normalizeRotation(currentRotation);
+      const targetMod = rotationForWinner(winnerIndex);
+      let delta = targetMod - startRotation;
+      if (delta <= 0) delta += Math.PI * 2;
+      delta += extraSpins * Math.PI * 2;
+
+      const finalRotation = startRotation + delta;
+      const duration = 700 + Math.random() * 300;
+      const startTime = performance.now();
+
+      function easeOut(t) {
+        return 1 - Math.pow(1 - t, 2);
+      }
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const eased = easeOut(t);
+        currentRotation = startRotation + (finalRotation - startRotation) * eased;
+        drawWheel(currentRotation);
+
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          currentRotation = normalizeRotation(finalRotation);
+          drawWheel(currentRotation);
+          const winner = segments[getWinnerIndex(currentRotation)];
+          resultValue.textContent = winner;
+          resultValue.classList.remove("result-placeholder");
+          resultBox.classList.add("winner");
+          isSpinning = false;
+          canvas.classList.remove("spinning");
+          spinBtn.disabled = false;
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    canvas.addEventListener("click", spin);
+    spinBtn.addEventListener("click", spin);
+    reloadBtn.addEventListener("click", loadSegments);
+
+    loadSegments();
+  </script>
+</body>
+</html>
